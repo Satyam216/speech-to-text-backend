@@ -1,96 +1,28 @@
-import express from "express";
-import cors from "cors";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+import app from "./src/app.js";
+import dotenv from "dotenv";
+import supabase from "./src/config/supabaseClient.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Ensure uploads folder exists
-const UPLOAD_DIR = path.join(__dirname, "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
-
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: function (req, file, cb) {
-    // preserve original extension & add timestamp to avoid collisions
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext).replace(/\s+/g, "-");
-    cb(null, `${name}-${Date.now()}${ext}`);
-  },
-});
-
-// Accept only audio mime-types
-const audioMimeTypes = [
-  "audio/wav",
-  "audio/x-wav",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/ogg",
-  "audio/webm",
-  "audio/x-m4a",
-  "audio/mp4",
-];
-
-function fileFilter(req, file, cb) {
-  if (audioMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE", "Only audio files are allowed"));
-  }
-}
-
-// File size limit (example: 25 MB)
-const limits = { fileSize: 25 * 1024 * 1024 };
-
-const upload = multer({ storage, fileFilter, limits });
-
-// Serve uploaded files statically (optional)
-app.use("/uploads", express.static(UPLOAD_DIR));
-
-// Upload route
-// Field name for file = "audio" (frontend must use same field name)
-app.post("/upload", upload.single("audio"), (req, res) => {
+// Supabase connection test before starting server
+const testSupabaseConnection = async () => {
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-    // File info
-    const { filename, originalname, size, path: filepath } = req.file;
-
-    // Respond with basic info (you can extend to start transcription here)
-    res.json({
-      success: true,
-      file: {
-        filename,
-        originalname,
-        size,
-        url: `/uploads/${filename}`,
-      },
-    });
+    const { data, error } = await supabase.from("transcriptions").select("*").limit(1);
+    if (error) {
+      console.error("Supabase connection failed:", error.message);
+    } else {
+      console.log("Supabase connected successfully!");
+    }
   } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).json({ error: "Server error while uploading" });
+    console.error("Error testing Supabase connection:", err.message);
   }
-});
-
-// multer error handler & fallback error handler
-app.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    // handle Multer errors
-    return res.status(400).json({ error: err.message });
-  }
-  console.error(err);
-  res.status(500).json({ error: "Internal server error" });
-});
+};
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+// Start Server
+app.listen(PORT, async () => {
+  const url = `http://localhost:${PORT}`;
+  console.log("🚀 Server is running successfully!");
+  console.log(`🌐 Open in your browser: ${url}`);
+  await testSupabaseConnection();
+});
