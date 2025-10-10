@@ -8,7 +8,7 @@ export const uploadAudio = async (req, res) => {
       return res.status(400).json({ error: "No audio file uploaded" });
     }
 
-    console.log("📥 File received:", file.originalname, file.mimetype);
+    console.log("File received:", file.originalname, file.mimetype);
 
     const bucketName = "audio-files"; // ✅ Must match your Supabase Storage bucket name
     const filePath = `uploads/${Date.now()}-${file.originalname}`;

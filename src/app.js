@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import audioRoutes from "./routes/audioRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import transcriptionRoutes from "./routes/transcriptionRoutes.js";
 
 dotenv.config();
 
@@ -13,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/uploads", express.static("uploads"));
-
+app.use("/api/transcription", transcriptionRoutes);
 //Health check route
 app.get("/", (req, res) => {
   res.status(200).json({
