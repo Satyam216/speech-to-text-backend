@@ -1,26 +1,22 @@
-import fs from "fs";
-import path from "path";
 import supabase from "../config/supabaseClient.js";
 
 export const uploadAudio = async (req, res) => {
   try {
     const file = req.file;
-    console.log("📥 File received:", file);
 
     if (!file) {
       return res.status(400).json({ error: "No audio file uploaded" });
     }
 
-    // Read file from disk
-    const fileBuffer = fs.readFileSync(file.path);
+    console.log("📥 File received:", file.originalname, file.mimetype);
 
-    // Upload to Supabase Storage (replace with your actual bucket name)
-    const bucketName = "audio-files"; // ✅ Make sure this exists in Supabase Storage
-    const filePath = `uploads/${file.filename}`;
+    const bucketName = "audio-files"; // ✅ Must match your Supabase Storage bucket name
+    const filePath = `uploads/${Date.now()}-${file.originalname}`;
 
+    // ✅ Upload directly from memory (no disk read)
     const { data, error } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, fileBuffer, {
+      .upload(filePath, file.buffer, {
         cacheControl: "3600",
         upsert: false,
         contentType: file.mimetype,
@@ -28,19 +24,19 @@ export const uploadAudio = async (req, res) => {
 
     if (error) {
       console.error("❌ Supabase upload error:", error.message);
-      return res.status(500).json({ error: "Unable to upload the audio file" });
+      return res.status(500).json({ error: "Failed to upload to Supabase" });
     }
 
     console.log("✅ Uploaded to Supabase:", data);
 
-    // Get public URL
+    // ✅ Get public URL
     const { data: publicUrlData } = supabase.storage
       .from(bucketName)
       .getPublicUrl(filePath);
 
     const audioUrl = publicUrlData.publicUrl;
 
-    // Save record in Supabase database
+    // ✅ Insert record into 'transcriptions' table
     const { error: insertError } = await supabase
       .from("transcriptions")
       .insert([
@@ -57,11 +53,11 @@ export const uploadAudio = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "✅ Audio uploaded and saved successfully",
+      message: "✅ Audio uploaded directly to Supabase and saved successfully",
       audioUrl,
     });
   } catch (err) {
-    console.error("🚨 Server error:", err);
+    console.error("🚨 Server error:", err.message);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
