@@ -5,57 +5,95 @@ import supabase from "../config/supabaseClient.js";
 
 const router = express.Router();
 
-// 🔹 SIGNUP
+/* ----------------------------- 🧩 SIGNUP ----------------------------- */
 router.post("/signup", async (req, res) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password)
-      return res.status(400).json({ error: "Email and password required" });
+      return res.status(400).json({ error: "Email and password are required." });
 
-    // Check existing
-    const { data: existing } = await supabase
+    // Check if user already exists
+    const { data: existing, error: findError } = await supabase
       .from("users")
-      .select("*")
-      .eq("email", email);
+      .select("id")
+      .eq("email", email)
+      .limit(1);
 
-    if (existing.length > 0)
-      return res.status(400).json({ error: "Email already registered" });
+    if (findError) throw findError;
+    if (existing && existing.length > 0)
+      return res.status(400).json({ error: "Email already registered." });
 
     // Hash password
-    const hashed = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user
-    const { error } = await supabase.from("users").insert([{ email, password: hashed }]);
-    if (error) throw error;
+    // Insert new user
+    const { data: newUser, error: insertError } = await supabase
+      .from("users")
+      .insert([{ email, password: hashedPassword }])
+      .select("id, email")
+      .single();
 
-    res.status(201).json({ message: "Signup successful" });
+    if (insertError) throw insertError;
+
+    // Generate JWT Token
+    const token = jwt.sign(
+      { id: newUser.id, email: newUser.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.status(201).json({
+      message: "Signup successful ✅",
+      token,
+      user: { id: newUser.id, email: newUser.email },
+    });
   } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Signup error:", err.message);
+    return res.status(500).json({ error: "Server error. Please try again later." });
   }
 });
 
-// 🔹 LOGIN
+/* ----------------------------- 🔐 LOGIN ----------------------------- */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password)
-      return res.status(400).json({ error: "Email and password required" });
+      return res.status(400).json({ error: "Email and password are required." });
 
-    const { data, error } = await supabase.from("users").select("*").eq("email", email);
-    if (error || data.length === 0)
-      return res.status(400).json({ error: "Invalid credentials" });
+    // Find user
+    const { data: users, error: fetchError } = await supabase
+      .from("users")
+      .select("id, email, password")
+      .eq("email", email)
+      .limit(1);
 
-    const user = data[0];
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(400).json({ error: "Invalid credentials" });
+    if (fetchError) throw fetchError;
+    if (!users || users.length === 0)
+      return res.status(400).json({ error: "Invalid credentials." });
 
-    const token = jwt.sign({ id: user.id, email: user.email }, "secretkey", {
-      expiresIn: "1d",
+    const user = users[0];
+
+    // Validate password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials." });
+
+    // Generate JWT Token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.json({
+      message: "Login successful ✅",
+      token,
+      user: { id: user.id, email: user.email },
     });
-
-    res.json({ message: "Login successful", token });
   } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Login error:", err.message);
+    return res.status(500).json({ error: "Server error. Please try again later." });
   }
 });
 
