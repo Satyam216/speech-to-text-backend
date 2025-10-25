@@ -84,7 +84,7 @@ export const uploadAudio = async (req, res) => {
     if (insertError) console.error("❌ DB insert error:", insertError.message);
     else console.log("🗃️ Supabase table updated successfully!");
 
-    // ✅ Delete temp file
+    //Delete temp file
     fs.unlinkSync(tempPath);
 
     return res.status(200).json({

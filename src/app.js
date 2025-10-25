@@ -15,7 +15,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/transcription", transcriptionRoutes);
-//Health check route
+
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,

@@ -10,7 +10,7 @@ export const transcribeAudio = async (req, res) => {
       return res.status(400).json({ error: "Missing audio URL" });
     }
 
-    console.log("🎧 Transcribing from URL:", audioUrl);
+    console.log("Transcribing from URL:", audioUrl);
 
     // Send audio URL to Deepgram for transcription
     const response = await deepgram.listen.prerecorded.transcribeUrl(audioUrl, {
@@ -23,18 +23,18 @@ export const transcribeAudio = async (req, res) => {
       response?.result?.results?.channels?.[0]?.alternatives?.[0]?.transcript ||
       "No speech detected.";
 
-    console.log("✅ Transcription success:", transcript);
+    console.log("Transcription success:", transcript);
 
-    // ✅ Update transcription in Supabase
+    //Update transcription in Supabase
     const { error: updateError } = await supabase
       .from("transcriptions")
       .update({ transcription_text: transcript })
       .eq("audio_url", audioUrl);
 
     if (updateError) {
-      console.error("❌ Supabase update error:", updateError.message);
+      console.error("Supabase update error:", updateError.message);
     } else {
-      console.log("🗃️ Supabase table updated successfully!");
+      console.log("Supabase table updated successfully!");
     }
 
     res.status(200).json({
@@ -42,7 +42,7 @@ export const transcribeAudio = async (req, res) => {
       transcription_text: transcript,
     });
   } catch (err) {
-    console.error("❌ Deepgram transcription error:", err.message);
+    console.error("Deepgram transcription error:", err.message);
     res.status(500).json({ error: "Deepgram transcription failed" });
   }
 };
